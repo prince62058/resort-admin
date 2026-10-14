@@ -41,7 +41,9 @@ export function createGateway({backendUrl, admin = false, assetFallback = true})
     for (const name of Object.keys(headers)) {
       if (name === 'forwarded' || name.startsWith('x-forwarded-')) delete headers[name];
     }
-    headers['x-forwarded-for'] = req.ip || req.socket.remoteAddress;
+    // The address is undefined once the browser has already cancelled the request.
+    const clientAddress = req.ip || req.socket.remoteAddress;
+    if (clientAddress) headers['x-forwarded-for'] = clientAddress;
     if (origin) headers.origin = target.origin;
     const transport = target.protocol === 'https:' ? https : http;
     const upstream = transport.request({protocol: target.protocol, hostname: target.hostname, port: target.port || undefined, method: req.method, path, headers});
