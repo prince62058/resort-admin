@@ -1,0 +1,27 @@
+.reels-editor .reels-intro { display: flex; align-items: center; justify-content: space-between; gap: 25px; background: #213d31; color: #f1f2df; }
+.reels-intro > div { max-width: 660px; }
+.reels-intro > svg { flex-shrink: 0; color: #c6d7aa; }
+.reels-intro h2 { font-size: clamp(24px, 3vw, 36px); letter-spacing: -1px; font-weight: 500; margin: 14px 0; }
+.reels-intro p { color: #d3dacb; line-height: 1.8; }
+.reels-editor .muted { line-height: 1.8; }
+.reel-editor-top, .reel-editor-top > div { display: flex; align-items: center; gap: 12px; }
+.reel-editor-top { justify-content: space-between; flex-wrap: wrap; margin-bottom: 24px; }
+.reel-editor-top h2 { font-size: 19px; margin: 0; overflow-wrap: anywhere; }
+.reel-editor-top > div:first-child { min-width: 0; flex: 1; }
+.reel-editor-number { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: #ecf0e4; color: #54704c; font-size: 12px; }
+.reel-editor-actions { gap: 2px !important; }
+.reel-editor-actions .icon { min-width: 44px; min-height: 44px; }
+.reel-editor-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 30px; }
+.reel-editor-grid > div { min-width: 0; }
+.reel-editor-grid .field { margin-bottom: 20px; }
+.reel-editor-cover { padding: 20px; background: #f4f5ed; border-radius: 12px; }
+.reel-editor-cover .image-strip { margin-bottom: 14px; }
+.reel-editor-cover .text-button { display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap; min-height: 44px; }
+.reel-video-options { border-top: 1px solid #e0e5d7; margin-top: 20px; padding-top: 16px; }
+.reel-video-options summary { cursor: pointer; font-size: 12px; padding: 8px 0; font-weight: 600; }
+.reel-video-options p { color: #6a7967; font-size: 12px; line-height: 1.8; }
+.reel-validation { color: #ad422c !important; }
+.reel-add { gap: 10px; }
+.reel-add > span { margin-left: 20px; font-size: 11px; color: #6a7967; }
+@media (max-width: 950px) { .reel-editor-grid { grid-template-columns: minmax(0, 1fr); gap: 18px; } }
+@media (max-width: 600px) { .reels-intro > svg { display: none; } .reel-editor-top { gap: 15px; } .reel-editor-top > div:first-child { flex-basis: 100%; } .reel-editor-cover { padding: 12px; } }

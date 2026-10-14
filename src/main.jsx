@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ArrowUpRight, ArrowLeft, ArrowRight, LayoutDashboard, FileText, BedDouble, Sparkles, Images, BookOpen, PanelTop, Type, Settings, Inbox, Search, Plus, X, Check, LogOut, Upload, ChevronLeft, ChevronRight, ChevronDown, Trash2, GripVertical, Eye, Globe, History, ShieldCheck, Menu, Leaf, Image as ImageIcon, Save, ExternalLink, Copy } from 'lucide-react';
+import { ArrowUpRight, ArrowLeft, ArrowRight, LayoutDashboard, FileText, BedDouble, Sparkles, Images, BookOpen, PanelTop, Type, Settings, Inbox, Search, Plus, X, Check, LogOut, Upload, ChevronLeft, ChevronRight, ChevronDown, Trash2, GripVertical, Eye, Globe, History, ShieldCheck, Menu, Leaf, Instagram, Image as ImageIcon, Save, ExternalLink, Copy } from 'lucide-react';
 import { api } from './api.js';
+import ReelsEditor from './ReelsEditor.jsx';
+import { emptyReels } from '../shared/reels.js';
 import { slugify, itemPath } from '../shared/content.js';
 import seed from '../shared/seed.json';
 import './styles.css';
 const websiteUrl = window.__NEST_CONFIG__?.siteUrl || 'http://localhost:5173';
 const websiteLink = path => new URL(path, websiteUrl).href;
-const navigation = [['overview', 'Overview', LayoutDashboard], ['pages', 'Pages & SEO', FileText], ['rooms', 'Stays', BedDouble], ['experiences', 'Experiences', Sparkles], ['galleries', 'Galleries', Images], ['posts', 'Journal', BookOpen], ['banners', 'Banners & sections', PanelTop], ['copy', 'Website copy', Type], ['media', 'Media library', ImageIcon], ['enquiries', 'Guest enquiries', Inbox], ['settings', 'Site settings', Settings], ['history', 'Version history', History], ['account', 'Account', ShieldCheck]];
+const navigation = [['overview', 'Overview', LayoutDashboard], ['pages', 'Pages & SEO', FileText], ['rooms', 'Stays', BedDouble], ['experiences', 'Experiences', Sparkles], ['galleries', 'Galleries', Images], ['posts', 'Journal', BookOpen], ['banners', 'Banners & sections', PanelTop], ['reels', 'Corner reels', Instagram], ['copy', 'Website copy', Type], ['media', 'Media library', ImageIcon], ['enquiries', 'Guest enquiries', Inbox], ['settings', 'Site settings', Settings], ['history', 'Version history', History], ['account', 'Account', ShieldCheck]];
 const collectionNames = {
   pages: 'Pages',
   rooms: 'Stays',
@@ -192,6 +194,7 @@ function App() {
                 setSelected(null);
               }
             }} /></> : <><div className="collection-toolbar"><label className="search"><Search size={17} /><input aria-label="Search content" placeholder={'Search ' + collectionNames[tab].toLowerCase() + '…'} value={query} onChange={e => setQuery(e.target.value)} /></label><span>{content[tab].length} items · {content[tab].filter(i => i.status === 'published').length} published</span></div><div className="content-grid">{content[tab].filter(i => (i.name + ' ' + i.slug).toLowerCase().includes(query.toLowerCase())).sort((a, b) => a.order - b.order).map(i => <button key={i.id} className={'content-card ' + (tab === 'pages' ? 'page-card' : '')} onClick={() => setSelected(i.id)}>{tab !== 'pages' && <div className="card-image"><img src={imageUrl(i.images[0])} alt="" loading="lazy" /><span className={'pill ' + i.status}>{i.status}</span></div>}<div className="card-copy">{tab === 'pages' && <div className="page-card-top"><FileText size={24} /><span className={'pill ' + i.status}>{i.status}</span></div>}<h3>{i.name}</h3><p className="slug-line">{itemPath(content, tab, i)}</p><div className="card-footer"><span>{i.seo.title && i.seo.description ? 'SEO details added' : 'Add SEO details'}</span><ArrowUpRight size={19} /></div></div></button>)}</div></>)}
+    {tab === 'reels' && <ReelsEditor config={content.reels || emptyReels} change={value => update(c => { c.reels = value; })} ImageList={ImageList} />}
     {tab === 'media' && <MediaLibrary />}
     {tab === 'enquiries' && <Enquiries />}
     {tab === 'settings' && <SettingsEditor settings={content.settings} change={(key, value) => update(c => {
