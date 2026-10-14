@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ArrowUpRight, ArrowLeft, ArrowRight, LayoutDashboard, FileText, BedDouble, Sparkles, Images, BookOpen, PanelTop, Type, Settings, Inbox, Search, Plus, X, Check, LogOut, Upload, ChevronLeft, ChevronRight, ChevronDown, Trash2, GripVertical, Eye, Globe, History, ShieldCheck, Menu, Leaf, Instagram, Image as ImageIcon, Save, ExternalLink, Copy } from 'lucide-react';
+import { ArrowUpRight, ArrowLeft, ArrowRight, LayoutDashboard, FileText, BedDouble, Sparkles, Images, BookOpen, PanelTop, Type, Settings, Inbox, Search, Plus, X, Check, LogOut, Upload, ChevronLeft, ChevronRight, Trash2, Globe, History, ShieldCheck, Menu, Leaf, Instagram, Image as ImageIcon, Save, ExternalLink, Copy } from 'lucide-react';
 import { api } from './api.js';
 import ReelsEditor from './ReelsEditor.jsx';
+import StudioOverview from './StudioOverview.jsx';
+import StudioSearch from './StudioSearch.jsx';
+import ContentCollection from './ContentCollection.jsx';
 import { emptyReels } from '../shared/reels.js';
 import { slugify, itemPath } from '../shared/content.js';
 import seed from '../shared/seed.json';
@@ -10,6 +13,7 @@ import './styles.css';
 const websiteUrl = window.__NEST_CONFIG__?.siteUrl || 'http://localhost:5173';
 const websiteLink = path => new URL(path, websiteUrl).href;
 const navigation = [['overview', 'Overview', LayoutDashboard], ['pages', 'Pages & SEO', FileText], ['rooms', 'Stays', BedDouble], ['experiences', 'Experiences', Sparkles], ['galleries', 'Galleries', Images], ['posts', 'Journal', BookOpen], ['banners', 'Banners & sections', PanelTop], ['reels', 'Corner reels', Instagram], ['copy', 'Website copy', Type], ['media', 'Media library', ImageIcon], ['enquiries', 'Guest enquiries', Inbox], ['settings', 'Site settings', Settings], ['history', 'Version history', History], ['account', 'Account', ShieldCheck]];
+const navigationGroups = [['Workspace', ['overview', 'enquiries']], ['Your content', ['pages', 'rooms', 'experiences', 'galleries', 'posts']], ['The visual story', ['banners', 'reels', 'media', 'copy']], ['Manage', ['settings', 'history', 'account']]];
 const collectionNames = {
   pages: 'Pages',
   rooms: 'Stays',
@@ -55,11 +59,12 @@ function App() {
     [content, setContent] = useState(null),
     [tab, setTab] = useState('overview'),
     [selected, setSelected] = useState(null),
-    [query, setQuery] = useState(''),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(''),
     [error, setError] = useState(''),
-    [mobile, setMobile] = useState(false);
+    [mobile, setMobile] = useState(false),
+    [searchOpen, setSearchOpen] = useState(false);
+  const sidebarRef = useRef();
   const dirty = Boolean(doc && JSON.stringify(content) !== JSON.stringify(doc.content));
   useEffect(() => {
     api('/status').then(s => {
@@ -87,6 +92,42 @@ function App() {
     window.addEventListener('beforeunload', protect);
     return () => window.removeEventListener('beforeunload', protect);
   }, [dirty]);
+  useEffect(() => {
+    if (!auth) return;
+    const shortcut = e => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setMobile(false);
+        setSearchOpen(open => !open);
+      }
+    };
+    window.addEventListener('keydown', shortcut);
+    return () => window.removeEventListener('keydown', shortcut);
+  }, [auth]);
+  useEffect(() => {
+    if (!mobile) return;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    sidebarRef.current?.querySelector('.sidebar-close')?.focus();
+    const keyboard = e => {
+      if (e.key === 'Escape') setMobile(false);
+      if (e.key !== 'Tab') return;
+      const focusable = [...sidebarRef.current.querySelectorAll('a[href], button')].filter(el => el.getClientRects().length);
+      const first = focusable[0], last = focusable.at(-1);
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    const resize = () => { if (window.innerWidth > 900) setMobile(false); };
+    window.addEventListener('keydown', keyboard);
+    window.addEventListener('resize', resize);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', keyboard);
+      window.removeEventListener('resize', resize);
+      previousFocus?.focus();
+    };
+  }, [mobile]);
   function update(mutator) {
     setContent(prev => {
       const next = clone(prev);
@@ -96,11 +137,11 @@ function App() {
     setMessage('');
     setError('');
   }
-  function navigate(next) {
+  function navigate(next, id = null) {
     setTab(next);
-    setSelected(null);
-    setQuery('');
+    setSelected(id);
     setMobile(false);
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }
   async function save(publish) {
     setBusy(true);
@@ -151,10 +192,10 @@ function App() {
   const item = collectionNames[tab] && content?.[tab].find(x => x.id === selected);
   return <div className="studio">
   {mobile && <button className="sidebar-scrim" aria-label="Close navigation" onClick={() => setMobile(false)} />}
-  <aside className={'sidebar ' + (mobile ? 'open' : '')}><a className="studio-brand" href={websiteUrl} target="_blank" rel="noreferrer"><img src="/assets/3d/nature-nest-emblem.webp" alt="" /><span>Nature Nest<small>THE CONTENT STUDIO</small></span></a><div className="sidebar-caption">YOUR WORKSPACE</div><nav>{navigation.map(([key, label, Icon]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => navigate(key)}><Icon size={18} />{label}{tab === key && <span className="nav-dot" />}</button>)}</nav><a className="sidebar-visit" href={websiteUrl} target="_blank" rel="noreferrer"><Globe size={17} /> Visit website <ArrowUpRight size={17} /></a><button className="profile" onClick={logout}><span className="avatar">{auth.user.email[0].toUpperCase()}</span><span>Resort administrator<small>{auth.user.email}</small></span><LogOut size={16} /></button></aside>
-  <div className="workspace"><header className="topbar"><div><button className="mobile-toggle icon" aria-label="Open navigation" onClick={() => setMobile(true)}><Menu /></button><span>Workspace</span><ChevronRight size={14} /><strong>{title}</strong></div><div><span className={'save-state ' + (dirty ? 'unsaved' : '')}><i />{dirty ? 'Unsaved changes' : 'All changes saved'}</span><a href={websiteUrl} target="_blank" rel="noreferrer" className="preview-link">View website <ExternalLink size={15} /></a></div></header>
+  <aside ref={sidebarRef} className={'sidebar ' + (mobile ? 'open' : '')} aria-label="Studio sidebar"><div className="sidebar-brand-row"><a className="studio-brand" href={websiteUrl} target="_blank" rel="noreferrer"><img src="/assets/3d/nature-nest-emblem.webp" alt="" /><span>Nature Nest<small>THE CONTENT STUDIO</small></span></a><button className="icon sidebar-close" aria-label="Close menu" onClick={() => setMobile(false)}><X size={20} /></button></div><div className="workspace-badge"><span className="workspace-badge-icon"><Leaf size={16} /></span><span>Your resort workspace<small>A little closer to nature.</small></span><span className="workspace-badge-dot" /></div><nav aria-label="Studio sections">{navigationGroups.map(([group, keys]) => <div className="nav-group" key={group}><div className="sidebar-caption">{group}</div>{keys.map(key => { const [, label, Icon] = navigation.find(item => item[0] === key); return <button key={key} className={tab === key ? 'active' : ''} aria-current={tab === key ? 'page' : undefined} onClick={() => navigate(key)}><Icon size={18} strokeWidth={1.6} /><span>{label}</span>{tab === key && <span className="nav-dot" />}</button>; })}</div>)}</nav><div className="sidebar-bottom"><a className="sidebar-visit" href={websiteUrl} target="_blank" rel="noreferrer"><Globe size={17} /><span>Visit website</span><ArrowUpRight size={17} /></a><div className="profile"><button className="profile-account" aria-label="Manage your account" onClick={() => navigate('account')}><span className="avatar">{auth.user.email[0].toUpperCase()}</span><span>Resort administrator<small>{auth.user.email}</small></span></button><button className="icon" title="Sign out" aria-label="Sign out" onClick={logout}><LogOut size={16} /></button></div></div></aside>
+  <div className="workspace" inert={mobile ? true : undefined}><header className="topbar"><div className="breadcrumbs"><button className="mobile-toggle icon" aria-label="Open navigation" aria-expanded={mobile} onClick={() => setMobile(true)}><Menu /></button><span>Workspace</span><ChevronRight size={14} /><strong>{title}</strong></div><div className="topbar-actions"><button className="studio-search-trigger" aria-label="Open studio search" onClick={() => setSearchOpen(true)}><Search size={16} /><span>Search anything…</span><kbd>⌘ K</kbd></button><span className={'save-state ' + (dirty ? 'unsaved' : '')}><i />{dirty ? 'Unsaved changes' : 'All changes saved'}</span><a href={websiteUrl} target="_blank" rel="noreferrer" className="preview-link">View website <ExternalLink size={15} /></a></div></header>
    {!content ? <div className="loading">Loading content… {error && <p role="alert">{error}<button onClick={() => reload().catch(e => setError(e.message))}>Retry</button></p>}</div> : <>
-    <div className="workspace-body"><div className="page-heading"><div><span className="eyebrow">THE NATURE NEST / STUDIO</span><h1>{tab === 'overview' ? 'A little care. A better stay.' : title}</h1><p>{tab === 'overview' ? 'Everything that makes your website feel like your resort, in one place.' : tab === 'media' ? 'Your resort, beautifully organised. Upload, browse and choose your photographs.' : tab === 'enquiries' ? 'Keep every conversation close. Follow up and manage your guest requests.' : 'Shape your story, keep it current, and make every detail yours.'}</p></div>{collectionNames[tab] && !selected && <button className="primary" onClick={() => {
+    <main className="workspace-body" id="studio-content"><div className="page-heading"><div><span className="eyebrow">THE NATURE NEST / STUDIO</span><h1>{tab === 'overview' ? 'A little care. A better stay.' : title}</h1><p>{tab === 'overview' ? 'Everything that makes your website feel like your resort, in one place.' : tab === 'media' ? 'Your resort, beautifully organised. Upload, browse and choose your photographs.' : tab === 'enquiries' ? 'Keep every conversation close. Follow up and manage your guest requests.' : 'Shape your story, keep it current, and make every detail yours.'}</p></div>{collectionNames[tab] && !selected && <button className="primary" onClick={() => {
               const sample = clone(seed[tab][0]);
               sample.id = crypto.randomUUID();
               sample.slug = 'new-' + slugify(tab) + '-' + Date.now().toString().slice(-5);
@@ -185,7 +226,7 @@ function App() {
               setSelected(sample.id);
             }}><Plus size={17} /> Add {({pages:'page',rooms:'stay',experiences:'experience',galleries:'gallery',posts:'story'})[tab]}</button>}</div>
     {error && <div className="notice error" role="alert">{error}<button className="icon" aria-label="Dismiss error" onClick={() => setError('')}><X size={16} /></button></div>}{message && <div className="notice success" role="status"><Check size={17} />{message}</div>}
-    {tab === 'overview' && <Overview content={content} publishedAt={doc.publishedAt} navigate={navigate} />}
+    {tab === 'overview' && <StudioOverview content={content} publishedAt={doc.publishedAt} navigate={navigate} />}
     {collectionNames[tab] && (item ? <><button className="back-link" onClick={() => setSelected(null)}><ArrowLeft size={17} /> All {collectionNames[tab].toLowerCase()}</button><ContentEditor type={tab} item={item} content={content} change={changeItem} remove={() => {
               if (confirm('Remove this item from the draft? The live version changes only when you publish.')) {
                 update(c => {
@@ -193,7 +234,7 @@ function App() {
                 });
                 setSelected(null);
               }
-            }} /></> : <><div className="collection-toolbar"><label className="search"><Search size={17} /><input aria-label="Search content" placeholder={'Search ' + collectionNames[tab].toLowerCase() + '…'} value={query} onChange={e => setQuery(e.target.value)} /></label><span>{content[tab].length} items · {content[tab].filter(i => i.status === 'published').length} published</span></div><div className="content-grid">{content[tab].filter(i => (i.name + ' ' + i.slug).toLowerCase().includes(query.toLowerCase())).sort((a, b) => a.order - b.order).map(i => <button key={i.id} className={'content-card ' + (tab === 'pages' ? 'page-card' : '')} onClick={() => setSelected(i.id)}>{tab !== 'pages' && <div className="card-image"><img src={imageUrl(i.images[0])} alt="" loading="lazy" /><span className={'pill ' + i.status}>{i.status}</span></div>}<div className="card-copy">{tab === 'pages' && <div className="page-card-top"><FileText size={24} /><span className={'pill ' + i.status}>{i.status}</span></div>}<h3>{i.name}</h3><p className="slug-line">{itemPath(content, tab, i)}</p><div className="card-footer"><span>{i.seo.title && i.seo.description ? 'SEO details added' : 'Add SEO details'}</span><ArrowUpRight size={19} /></div></div></button>)}</div></>)}
+            }} /></> : <ContentCollection key={tab} type={tab} title={collectionNames[tab]} content={content} open={setSelected} />)}
     {tab === 'reels' && <ReelsEditor config={content.reels || emptyReels} change={value => update(c => { c.reels = value; })} ImageList={ImageList} />}
     {tab === 'media' && <MediaLibrary />}
     {tab === 'enquiries' && <Enquiries />}
@@ -209,9 +250,10 @@ function App() {
             }
           }} />}
     {tab === 'account' && <Account email={auth.user.email} />}
-    </div><div className="publish-bar"><div><span className="publish-dot" /><span><strong>{dirty ? 'Your next chapter is taking shape.' : 'Make something worth coming back to.'}</strong><small>Save a draft to keep editing. Publish to update the website.</small></span></div><div><button className="secondary" disabled={busy} onClick={() => save(false)}><Save size={16} />{busy ? 'Saving…' : 'Save draft'}</button><button className="primary" disabled={busy} onClick={() => save(true)}><Globe size={16} /> Publish changes</button></div></div>
+    </main><div className={"publish-bar " + (dirty ? "has-changes" : "")}><div><span className="publish-dot" /><span><strong>{dirty ? 'You have unsaved changes.' : 'Your draft is saved.'}</strong><small>Save your draft. Publish when it feels just right.</small></span></div><div><button className="secondary" disabled={busy} onClick={() => save(false)}><Save size={16} />{busy ? 'Saving…' : 'Save draft'}</button><button className="primary" disabled={busy} onClick={() => save(true)}><Globe size={16} /> Publish changes</button></div></div>
    </>}
   </div>
+  {searchOpen && <StudioSearch navigation={navigation} content={content} navigate={navigate} close={() => setSearchOpen(false)} Modal={Modal} />}
  </div>;
 }
 function Login({
@@ -242,18 +284,6 @@ function Login({
           setBusy(false);
         }
       }}><Field label="Email address" type="email" value={email} onChange={setEmail} required autoComplete="username" /><Field label="Password" type="password" value={password} onChange={setPassword} required minLength={12} maxLength={128} autoComplete={setup ? 'new-password' : 'current-password'} hint={setup ? 'Choose a unique password with at least 12 characters.' : undefined} />{setup && <Field label="Private setup token" type="password" value={token} onChange={setToken} required autoComplete="off" hint="Use ADMIN_SETUP_TOKEN from the server environment. This is only needed for the first account." />}{error && <p className="notice error" role="alert">{error}</p>}<button className="primary" disabled={busy}>{busy ? 'Please wait…' : setup ? 'Create owner account' : 'Sign in'}<ArrowRight size={18} /></button></form><a className="back-link" href={websiteUrl}><ArrowLeft size={15} /> Back to the resort</a><small className="auth-security"><ShieldCheck size={14} /> Private access · Secure session</small></div></div>;
-}
-function Overview({
-  content,
-  publishedAt,
-  navigate
-}) {
-  const stats = [['Rooms & villas', content.rooms.length, BedDouble, 'rooms'], ['Published pages', content.pages.filter(p => p.status === 'published').length, FileText, 'pages'], ['Photo collections', content.galleries.length, Images, 'galleries'], ['Journal stories', content.posts.length, BookOpen, 'posts']];
-  const missing = Object.entries(collectionNames).flatMap(([type]) => content[type].filter(x => !x.seo.title || !x.seo.description).map(x => ({
-    type,
-    name: x.name
-  })));
-  return <><div className="stats">{stats.map(([label, value, Icon, to]) => <button key={label} onClick={() => navigate(to)}><div><span>{label}</span><Icon size={20} /></div><strong>{String(value).padStart(2, '0')}</strong><small>Manage collection <ArrowUpRight size={14} /></small></button>)}</div><div className="overview-grid"><section className="welcome-card"><img src="/assets/enhanced/story/story-arrival-v1.webp" alt="Nature Nest gardens" /><div><span className="eyebrow">A WEBSITE THAT GROWS WITH YOU</span><h2>Keep the feeling.<br /><em>Refresh the details.</em></h2><p>New experiences, beautiful photographs, little stories. Give your guests a reason to explore.</p><button onClick={() => navigate('banners')}>Edit your banners <ArrowUpRight size={17} /></button></div></section><section className="panel seo-overview"><div className="panel-heading"><span className="icon-tile"><Search size={20} /></span><h2>Ready to be discovered.</h2></div><p>Strong titles, useful descriptions and clear URLs help guests find their next escape.</p><div className="check-row"><Check size={17} /> Slug-based page URLs</div><div className="check-row"><Check size={17} /> Sitemap & page metadata</div><div className="check-row"><Check size={17} /> Automatic redirects on slug changes</div>{!content.settings.siteUrl && <button className="setup-note" onClick={() => navigate('settings')}>Set your live website URL <ArrowUpRight size={17} /></button>}<p className="muted">{missing.length ? missing.length + ' items need SEO titles or descriptions.' : 'Every content item has an SEO title and description.'}</p><small>Last published: {publishedAt ? new Date(publishedAt).toLocaleString() : 'Not published yet'}</small></section></div><div className="quick-actions"><button onClick={() => navigate('media')}><Upload /><span><strong>A new perspective</strong><small>Add photographs to your library</small></span><ArrowUpRight /></button><button onClick={() => navigate('enquiries')}><Inbox /><span><strong>A warm welcome</strong><small>Follow up with your guests</small></span><ArrowUpRight /></button><button onClick={() => navigate('posts')}><BookOpen /><span><strong>A story worth sharing</strong><small>Write your next journal entry</small></span><ArrowUpRight /></button></div></>;
 }
 function ImageList({
   label = 'Photographs',
@@ -291,7 +321,7 @@ function Modal({
       focus?.focus();
     };
   }, []);
-  return <dialog className="studio-modal" ref={ref} onCancel={close}><header><h2>{title}</h2><button className="icon" aria-label="Close dialog" onClick={close}><X /></button></header>{children}</dialog>;
+  return <dialog className="studio-modal" aria-label={title} ref={ref} onCancel={close}><header><h2>{title}</h2><button className="icon" aria-label="Close dialog" onClick={close}><X /></button></header>{children}</dialog>;
 }
 function SeoEditor({
   seo,
@@ -411,14 +441,22 @@ function MediaLibrary({
             }
           }}><Trash2 size={15} /></button>}</div></div>)}</div><div className="pagination"><button className="secondary" disabled={page === 1 || busy} onClick={() => setPage(p => p - 1)}><ChevronLeft size={16} /> Previous</button><span>Page {page} of {Math.max(1, Math.ceil(total / 24))}</span><button className="secondary" disabled={page * 24 >= total || busy} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={16} /></button></div></div>;
 }
-function SettingsEditor({
-  settings: s,
-  change
-}) {
-  return <><section className="panel"><div className="panel-heading"><Settings size={20} /><h2>The details that make it yours.</h2></div><div className="form-grid">{['name', 'fullName', 'tagline', 'phone', 'phoneInternational', 'phoneDigits', 'email', 'address', 'location', 'maps', 'siteUrl', 'instagram', 'facebook', 'linkedin'].map(key => <Field key={key} label={key === 'siteUrl' ? 'Live website URL' : human(key)} value={s[key]} onChange={v => change(key, v)} type={['address', 'tagline'].includes(key) ? 'textarea' : 'text'} hint={key === 'siteUrl' ? 'Your final HTTPS domain, e.g. https://thenaturenestresort.com. Used for canonical URLs, sitemap and social sharing.' : key === 'phoneDigits' ? 'International digits only; used for phone and WhatsApp links.' : undefined} />)}</div><ImageList label="Brand emblem / logo" single images={[s.logo]} onChange={v => change('logo', v[0])} />{Object.entries(s.icons).map(([kind, image]) => <ImageList key={kind} label={human(kind) + ' decorative icon'} single images={[image]} onChange={v => change('icons', {
-        ...s.icons,
-        [kind]: v[0]
-      })} />)}<ImageList label="Browser favicon" single images={[s.favicon]} onChange={v => change('favicon', v[0])} /></section><section className="panel"><h2>Guest information & policies</h2><p>Edit privacy, booking terms, cancellations, cookies and the guest guide in <strong>Pages & SEO</strong>. Each page has its own content, URL slug, update date and search preview. FAQ answers are in Banners & sections.</p><p className="muted">Confirm your actual check-in times, booking conditions and refund arrangements before adding fixed timings or charges. Contact tokens in policy text automatically use the details above.</p></section><SeoEditor seo={s.defaultSeo} onChange={v => change('defaultSeo', v)} path="/" siteUrl={s.siteUrl} /></>;
+function SettingsEditor({ settings: s, change }) {
+  const [section, setSection] = useState('details');
+  const groups = [
+    ['Your resort identity', 'The name and the little words that make the nest yours.', Leaf, ['name', 'fullName', 'tagline']],
+    ['A warm welcome starts here', 'Keep your contact details and directions easy to find.', Inbox, ['phone', 'phoneInternational', 'phoneDigits', 'email', 'address', 'location', 'maps']],
+    ['Your website address', 'The home of your resort online.', Globe, ['siteUrl']]
+  ];
+  const socialLinks = [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['linkedin', 'LinkedIn'], ['youtube', 'YouTube']];
+  return <>
+    <div className="section-tabs" aria-label="Settings sections">{[['details', 'Resort details'], ['brand', 'Brand & imagery'], ['seo', 'Default SEO'], ['policies', 'Guest policies']].map(([key, label]) => <button key={key} className={section === key ? 'active' : ''} aria-pressed={section === key} onClick={() => setSection(key)}>{label}</button>)}</div>
+    {section === 'details' && groups.map(([title, note, Icon, keys]) => <section className="panel" key={title}><div className="panel-heading"><span className="icon-tile"><Icon size={20} /></span><div><h2>{title}</h2><p>{note}</p></div></div><div className="form-grid">{keys.map(key => <Field key={key} label={key === 'siteUrl' ? 'Live website URL' : human(key)} value={s[key]} onChange={v => change(key, v)} type={['address', 'tagline'].includes(key) ? 'textarea' : 'text'} hint={key === 'siteUrl' ? 'Your final HTTPS domain, e.g. https://thenaturenestresort.com. Used for canonical URLs, sitemap and social sharing.' : key === 'phoneDigits' ? 'International digits only; used for phone and WhatsApp links.' : undefined} />)}</div></section>)}
+    {section === 'details' && <section className="panel" aria-labelledby="social-links-title"><div className="panel-heading"><span className="icon-tile"><Instagram size={20} /></span><div><h2 id="social-links-title">Follow the little moments.</h2><p>Connect the social icons in your website footer. Leave a link empty to hide its icon, then publish your changes.</p></div></div><div className="form-grid">{socialLinks.map(([key, label]) => <Field key={key} label={label + ' link'} type="url" value={s[key]} placeholder="https://…" autoCapitalize="none" spellCheck={false} onChange={v => change(key, v.trim())} hint={key === 'youtube' ? 'Paste your channel or video URL whenever it is ready.' : undefined} />)}</div></section>}
+    {section === 'brand' && <section className="panel"><div className="panel-heading"><span className="icon-tile"><Sparkles size={20} /></span><div><h2>Recognisably, beautifully yours.</h2><p>Your emblem, your little details, your signature.</p></div></div><div className="brand-settings"><ImageList label="Brand emblem / logo" single images={[s.logo]} onChange={v => change('logo', v[0])} /><ImageList label="Browser favicon" single images={[s.favicon]} onChange={v => change('favicon', v[0])} />{Object.entries(s.icons).map(([kind, image]) => <ImageList key={kind} label={human(kind) + ' decorative icon'} single images={[image]} onChange={v => change('icons', { ...s.icons, [kind]: v[0] })} />)}</div></section>}
+    {section === 'policies' && <section className="panel"><div className="panel-heading"><span className="icon-tile"><ShieldCheck size={20} /></span><h2>Guest information & policies</h2></div><p>Edit privacy, booking terms, cancellations, cookies and the guest guide in <strong>Pages & SEO</strong>. Each page has its own content, URL slug, update date and search preview. FAQ answers are in Banners & sections.</p><p className="muted">Confirm your actual check-in times, booking conditions and refund arrangements before adding fixed timings or charges. Contact tokens in policy text automatically use the resort details.</p></section>}
+    {section === 'seo' && <SeoEditor seo={s.defaultSeo} onChange={v => change('defaultSeo', v)} path="/" siteUrl={s.siteUrl} />}
+  </>;
 }
 function CopyEditor({
   content,
